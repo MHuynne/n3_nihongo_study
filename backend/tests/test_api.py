@@ -1,0 +1,155 @@
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from pathlib import Path
+
+import httpx
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import create_async_engine
+
+from app.core.config import Settings
+from app.db.base import Base
+from app.main import create_app
+from app.models import StudyData, User
+
+pytestmark = pytest.mark.asyncio
+
+
+@pytest_asyncio.fixture
+async def client(tmp_path) -> AsyncIterator[httpx.AsyncClient]:
+    database_file = tmp_path / "n3-study-test.sqlite3"
+    engine = create_async_engine(f"sqlite+aiosqlite:///{database_file}")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    settings = Settings(
+        _env_file=None,
+        app_env="test",
+        session_secret="test-session-secret-with-at-least-32-chars",
+        mysql_host="127.0.0.1",
+        mysql_user="n3studio_test",
+        mysql_password="test-database-password",
+        mysql_database="n3_study_studio_test",
+        trusted_hosts=["testserver"],
+        rate_limit_storage_uri="memory://",
+        frontend_directory=Path(__file__).resolve().parents[2] / "dist",
+    )
+    application = create_app(settings=settings, engine=engine)
+    transport = httpx.ASGITransport(app=application)
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
+    ) as test_client:
+        yield test_client
+    await engine.dispose()
+
+
+async def test_registration_study_data_and_logout_are_account_scoped(
+    client: httpx.AsyncClient,
+) -> None:
+    registration = await client.post(
+        "/api/auth/register",
+        json={"username": "Study.User", "password": "a-strong-study-password"},
+    )
+    assert registration.status_code == 201
+    assert registration.json()["username"] == "study.user"
+
+    study_response = await client.get("/api/study-data")
+    assert study_response.status_code == 200
+    payload = study_response.json()
+    assert len(payload["data"]) == 362
+    assert payload["notes"] == []
+
+    payload["state"]["seed0"] = {"weak": True, "level": 0, "due": 1_800_000_000_000}
+    saved = await client.put("/api/study-data", json=payload)
+    assert saved.status_code == 200
+    assert saved.json() == {"saved": True}
+
+    assert (await client.post("/api/auth/logout")).status_code == 204
+    assert (await client.get("/api/study-data")).status_code == 401
+    second_account = await client.post(
+        "/api/auth/register",
+        json={"username": "study.second", "password": "another-strong-password"},
+    )
+    assert second_account.status_code == 201
+    second_data = (await client.get("/api/study-data")).json()
+    assert second_data["state"] == {}
+
+
+async def test_auth_rejects_invalid_password_duplicate_username_and_bad_origin(
+    client: httpx.AsyncClient,
+) -> None:
+    invalid = await client.post(
+        "/api/auth/register",
+        json={"username": "valid.user", "password": "short"},
+    )
+    assert invalid.status_code == 422
+    assert "short" not in invalid.text
+
+    created = await client.post(
+        "/api/auth/register",
+        json={"username": "valid.user", "password": "a-strong-study-password"},
+    )
+    assert created.status_code == 201
+
+    duplicate = await client.post(
+        "/api/auth/register",
+        json={"username": "VALID.USER", "password": "another-strong-password"},
+    )
+    assert duplicate.status_code == 409
+
+    await client.post("/api/auth/logout")
+    bad_login = await client.post(
+        "/api/auth/login",
+        json={"username": "valid.user", "password": "wrong-study-password"},
+    )
+    assert bad_login.status_code == 401
+    good_login = await client.post(
+        "/api/auth/login",
+        json={"username": "VALID.USER", "password": "a-strong-study-password"},
+    )
+    assert good_login.status_code == 200
+
+    forwarded_https = await client.post(
+        "/api/auth/logout",
+        headers={
+            "Origin": "https://testserver",
+            "X-Forwarded-Proto": "https",
+        },
+    )
+    assert forwarded_https.status_code == 204
+
+    await client.post(
+        "/api/auth/login",
+        json={"username": "valid.user", "password": "a-strong-study-password"},
+    )
+    wrong_origin = await client.post(
+        "/api/auth/logout",
+        headers={"Origin": "https://attacker.example"},
+    )
+    assert wrong_origin.status_code == 403
+
+
+async def test_study_data_rejects_invalid_ids_and_duplicate_items(
+    client: httpx.AsyncClient,
+) -> None:
+    assert (StudyData.__tablename__, User.__tablename__) == ("user_study_data", "users")
+    registered = await client.post(
+        "/api/auth/register",
+        json={"username": "schema.user", "password": "a-strong-study-password"},
+    )
+    assert registered.status_code == 201
+    payload = (await client.get("/api/study-data")).json()
+    payload["data"][1]["id"] = payload["data"][0]["id"]
+    invalid = await client.put("/api/study-data", json=payload)
+    assert invalid.status_code == 422
+
+
+async def test_health_and_static_frontend_are_served(client: httpx.AsyncClient) -> None:
+    assert (await client.get("/api/health/live")).json() == {"status": "ok"}
+    assert (await client.get("/api/health/ready")).json() == {"status": "ok"}
+    page = await client.get("/")
+    assert page.status_code == 200
+    assert 'src="bootstrap.js"' in page.text

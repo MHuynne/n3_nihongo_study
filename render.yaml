@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: nihongo-study-studio
+    runtime: python
+    plan: free
+    buildCommand: python -m pip install -e ./backend
+    startCommand: python -m alembic -c backend/alembic.ini upgrade head && n3-study-studio
+    healthCheckPath: /api/health/ready
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_HOST
+        value: 0.0.0.0
+      - key: TRUSTED_HOSTS
+        value: '["*.onrender.com"]'
+      - key: MYSQL_HOST
+        sync: false
+      - key: MYSQL_PORT
+        value: "3306"
+      - key: MYSQL_USER
+        sync: false
+      - key: MYSQL_PASSWORD
+        sync: false
+      - key: MYSQL_DATABASE
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: RATE_LIMIT_STORAGE_URI
+        value: memory://
