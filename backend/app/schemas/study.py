@@ -34,6 +34,12 @@ class StudyItem(BaseModel):
     deck_folder: str = Field(default="", max_length=120)
     deck_name: str = Field(default="", max_length=200)
 
+    @model_validator(mode="after")
+    def validate_term_or_meaning(self) -> StudyItem:
+        if not self.term.strip() and not self.meaning.strip():
+            raise ValueError("A study item must have a term or a meaning.")
+        return self
+
 
 class ReviewProgress(BaseModel):
     model_config = ConfigDict(extra="forbid")

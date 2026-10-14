@@ -40,7 +40,7 @@
     const columns = Object.fromEntries(
       Object.entries(aliases).map(([key, names]) => [key, header.findIndex((value) => names.includes(value))])
     );
-    if (columns.tieng_nhat < 0 || columns.nghia < 0) {
+    if (columns.tieng_nhat < 0 && columns.nghia < 0) {
       return { items: [], skipped: rows.length - 1 };
     }
 
@@ -52,7 +52,7 @@
       const term = value('tieng_nhat');
       const meaning = value('nghia');
       const category = value('loai') || cats[0];
-      if (!term || !meaning || !cats.includes(category)) {
+      if ((!term && !meaning) || !cats.includes(category)) {
         skipped++;
         continue;
       }
@@ -300,13 +300,14 @@
         <section class="card lesson-add-card">
           <span class="badge">TẠO FLASHCARD</span><h3>Thêm thẻ bằng biểu mẫu</h3>
           <form id="add-lesson-card">
-            <label>Từ / cụm từ tiếng Nhật<input name="term" required maxlength="500" placeholder="例：予約する"></label>
+            <label>Từ / cụm từ tiếng Nhật<input name="term" maxlength="500" placeholder="例：予約する"></label>
             <div class="formgrid">
               <label>Cách đọc<input name="reading" maxlength="4000"></label>
               <label>Phân môn<select name="category">${cats.map((itemCategory) =>
                 `<option>${esc(itemCategory)}</option>`).join('')}</select></label>
             </div>
-            <label>Nghĩa / giải thích<textarea name="meaning" required maxlength="4000"></textarea></label>
+            <label>Nghĩa / giải thích<textarea name="meaning" maxlength="4000"></textarea></label>
+            <p class="muted">Chỉ cần nhập từ tiếng Nhật hoặc nghĩa / giải thích; có thể nhập cả hai.</p>
             <label>Ví dụ tiếng Nhật<textarea name="example" maxlength="4000"></textarea></label>
             <label>Dịch ví dụ<textarea name="translation" maxlength="4000"></textarea></label>
             <button class="primary">Lưu flashcard</button>
@@ -321,14 +322,14 @@
             <input type="file" accept=".xlsx,.csv,.tsv" onchange="loadCourseFile('${course.id}',this.files[0])">
           </label>
           <div id="preview"></div>
-          <small>Cần cột tieng_nhat và nghia; vi_du và dich_vi_du không bắt buộc.</small>
+          <small>Cần ít nhất một trong hai cột tieng_nhat hoặc nghia; mỗi dòng chỉ cần có từ tiếng Nhật hoặc nghĩa.</small>
         </section>
       </div>
       <section class="lesson-card-list">
         <div class="row between"><div><span class="badge">NỘI DUNG BÀI</span><h2>Flashcard trong bài</h2></div>
           <span class="badge">${cards.length} thẻ</span></div>
         ${cards.length ? `<div class="lesson-word-grid">${cards.map((item) => `<article class="card word-tile">
-          <span class="badge">${esc(item.category)}</span><h3 class="jp">${esc(item.term)}</h3>
+          <span class="badge">${esc(item.category)}</span><h3 class="jp">${esc(item.term || item.meaning)}</h3>
           ${item.reading ? `<p class="muted">${esc(item.reading)}</p>` : ''}
           <p>${esc(item.meaning)}</p>
           ${item.example ? `<p class="jp word-example">${esc(item.example)}</p>` : ''}
@@ -424,7 +425,7 @@
     const values = Object.fromEntries(new FormData(event.currentTarget));
     const term = String(values.term || '').trim();
     const meaning = String(values.meaning || '').trim();
-    if (!term || !meaning) return toast('Nhập từ tiếng Nhật và nghĩa của thẻ.');
+    if (!term && !meaning) return toast('Nhập từ tiếng Nhật hoặc nghĩa / giải thích để tạo flashcard.');
     data.push({
       id: crypto.randomUUID().replace(/-/g, '_'),
       term,
@@ -606,8 +607,8 @@
     if (item?.category !== 'Ngữ pháp') return baseEdit(id);
     $('#app').innerHTML = `<div class="card"><h2>Soạn bài ngữ pháp</h2>
       <form id="grammar-edit"><div class="formgrid">
-        <label>Mẫu ngữ pháp<input name="term" required maxlength="500" value="${esc(item.term)}"></label>
-        <label>Ý nghĩa / giải thích<input name="meaning" required maxlength="4000" value="${esc(item.meaning)}"></label>
+        <label>Mẫu ngữ pháp<input name="term" maxlength="500" value="${esc(item.term)}"></label>
+        <label>Ý nghĩa / giải thích<input name="meaning" maxlength="4000" value="${esc(item.meaning)}"></label>
         <label>Bài học<input name="lesson" required maxlength="200" value="${esc(item.lesson)}"></label>
         <label>Cách đọc<input name="reading" maxlength="4000" value="${esc(item.reading)}"></label>
         <label>Công thức chia<textarea name="structure" maxlength="4000">${esc(item.structure)}</textarea></label>
@@ -621,7 +622,11 @@
         <button type="button" onclick="go('grammar')">Hủy</button></p></form></div>`;
     $('#grammar-edit').onsubmit = (event) => {
       event.preventDefault();
-      Object.assign(item, Object.fromEntries(new FormData(event.currentTarget)));
+      const values = Object.fromEntries(new FormData(event.currentTarget));
+      if (!String(values.term || '').trim() && !String(values.meaning || '').trim()) {
+        return toast('Nhập mẫu ngữ pháp hoặc ý nghĩa / giải thích.');
+      }
+      Object.assign(item, values);
       save();
       go('grammar');
       toast('Đã lưu bài ngữ pháp.');
@@ -711,7 +716,7 @@
       'Cột: bai, loai, tieng_nhat, cach_doc, han_viet, nghia, vi_du, dich_vi_du, cong_thuc, cach_dung, ngu_canh, luu_y_jlpt, ghi_chu_vo.'
     ).replace(
       'Cần tiếng Nhật và nghĩa.',
-      'Đặt loai=Ngữ pháp và nhập một mẫu mỗi dòng; các cột công thức/cách dùng/ngữ cảnh/lưu ý JLPT/ghi chú vở là tùy chọn. Cần tiếng Nhật và nghĩa.'
+      'Mỗi dòng cần ít nhất từ tiếng Nhật hoặc nghĩa; các cột công thức/cách dùng/ngữ cảnh/lưu ý JLPT/ghi chú vở là tùy chọn.'
     ).replace(
       '<p><input type="file"',
       '<p><button type="button" onclick="downloadGrammarTemplate()">↓ Tải mẫu nhập ngữ pháp CSV</button></p><p><input type="file"'
@@ -722,13 +727,13 @@
   commitImport = function () {
     if (!activeDeckName) return baseCommitImport();
     const keys = new Set(data.map((item) =>
-      [item.deck_folder, item.deck_name, item.lesson, item.category, item.term].join('\0')
+      [item.deck_folder, item.deck_name, item.lesson, item.category, item.term, item.meaning].join('\0')
     ));
     let added = 0;
     for (const item of pending) {
       item.deck_folder = item.deck_folder || activeDeckFolder;
       item.deck_name = item.deck_name || activeDeckName;
-      const key = [item.deck_folder, item.deck_name, item.lesson, item.category, item.term].join('\0');
+      const key = [item.deck_folder, item.deck_name, item.lesson, item.category, item.term, item.meaning].join('\0');
       if (keys.has(key)) continue;
       data.push(item);
       keys.add(key);
@@ -791,14 +796,14 @@
     const course = lessons.find((entry) => entry.id === activeCourseId);
     if (!course) return toast('Không tìm thấy bài học để nhập flashcard.');
     const keys = new Set(data.map((item) =>
-      [item.deck_folder || '', item.deck_name || '', item.category, item.term].join('\0')
+      [item.deck_folder || '', item.deck_name || '', item.category, item.term, item.meaning].join('\0')
     ));
     let added = 0;
     for (const item of pending) {
       item.deck_folder = course.topic;
       item.deck_name = course.name;
       item.lesson = course.name;
-      const key = [item.deck_folder, item.deck_name, item.category, item.term].join('\0');
+      const key = [item.deck_folder, item.deck_name, item.category, item.term, item.meaning].join('\0');
       if (keys.has(key)) continue;
       data.push(item);
       keys.add(key);

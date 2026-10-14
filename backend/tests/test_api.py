@@ -150,6 +150,53 @@ async def test_study_data_rejects_invalid_ids_and_duplicate_items(
     assert invalid.status_code == 422
 
 
+async def test_study_item_can_be_saved_with_term_or_meaning(client: httpx.AsyncClient) -> None:
+    registered = await client.post(
+        "/api/auth/register",
+        json={"username": "partial.card", "password": "a-strong-study-password"},
+    )
+    assert registered.status_code == 201
+    payload = (await client.get("/api/study-data")).json()
+    payload["data"].extend(
+        [
+            {
+                "id": "term_only_card",
+                "term": "予約する",
+                "meaning": "",
+                "lesson": "Bài 01",
+                "category": "Từ vựng bài học",
+            },
+            {
+                "id": "meaning_only_card",
+                "term": "",
+                "meaning": "Đặt chỗ trước",
+                "lesson": "Bài 01",
+                "category": "Từ vựng bài học",
+            },
+        ]
+    )
+
+    saved = await client.put("/api/study-data", json=payload)
+    assert saved.status_code == 200
+    returned = await client.get("/api/study-data")
+    assert returned.status_code == 200
+    cards = {item["id"]: item for item in returned.json()["data"]}
+    assert cards["term_only_card"]["term"] == "予約する"
+    assert cards["meaning_only_card"]["meaning"] == "Đặt chỗ trước"
+
+    payload["data"].append(
+        {
+            "id": "empty_card",
+            "term": " ",
+            "meaning": "",
+            "lesson": "Bài 01",
+            "category": "Từ vựng bài học",
+        }
+    )
+    rejected = await client.put("/api/study-data", json=payload)
+    assert rejected.status_code == 422
+
+
 async def test_grammar_study_fields_are_saved_and_returned(client: httpx.AsyncClient) -> None:
     registered = await client.post(
         "/api/auth/register",
