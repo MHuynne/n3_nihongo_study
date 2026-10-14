@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ssl
 from functools import lru_cache
 from pathlib import Path
 
@@ -32,6 +33,8 @@ class Settings(BaseSettings):
     mysql_user: str
     mysql_password: SecretStr
     mysql_database: str
+    mysql_ssl: bool = False
+    mysql_ssl_ca: Path | None = None
     google_client_id: str | None = None
     google_client_secret: SecretStr | None = None
     google_redirect_uri: str | None = None
@@ -102,6 +105,16 @@ class Settings(BaseSettings):
             database=self.mysql_database,
             query={"charset": "utf8mb4"},
         ).render_as_string(hide_password=False)
+
+    @property
+    def database_connect_args(self) -> dict[str, object]:
+        if not self.mysql_ssl:
+            return {}
+        return {
+            "ssl": ssl.create_default_context(
+                cafile=str(self.mysql_ssl_ca) if self.mysql_ssl_ca else None
+            )
+        }
 
     @property
     def session_cookie_secure(self) -> bool:
