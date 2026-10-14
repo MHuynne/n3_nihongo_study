@@ -108,6 +108,7 @@ def create_app(settings: Settings | None = None, engine: AsyncEngine | None = No
     owns_engine = engine is None
     db_engine = engine or create_async_engine(
         app_settings.database_url,
+        connect_args=app_settings.database_connect_args,
         pool_pre_ping=True,
         pool_recycle=1800,
     )
