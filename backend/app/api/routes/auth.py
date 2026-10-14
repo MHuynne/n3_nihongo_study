@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from authlib.integrations.base_client.errors import OAuthError
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -39,7 +40,25 @@ def set_authenticated_session(request: Request, user: User) -> AuthenticatedUser
     request.session.clear()
     request.session["user_id"] = user.id
     request.session["username"] = user.username
-    return AuthenticatedUser(id=user.id, username=user.username)
+    return AuthenticatedUser(id=user.id, username=user.username, avatar_url=user.avatar_url)
+
+
+def verified_google_avatar(profile: object) -> str | None:
+    if not isinstance(profile, dict):
+        return None
+    avatar_url = profile.get("picture")
+    if not isinstance(avatar_url, str) or len(avatar_url) > 2048:
+        return None
+    parsed_url = urlsplit(avatar_url)
+    hostname = parsed_url.hostname or ""
+    if (
+        parsed_url.scheme != "https"
+        or parsed_url.username is not None
+        or parsed_url.password is not None
+        or not (hostname == "googleusercontent.com" or hostname.endswith(".googleusercontent.com"))
+    ):
+        return None
+    return avatar_url
 
 
 @router.get("/me", response_model=CurrentUserResponse)
@@ -54,7 +73,9 @@ async def current_session(
     if user is None:
         request.session.clear()
         return CurrentUserResponse(user=None)
-    return CurrentUserResponse(user=AuthenticatedUser(id=user.id, username=user.username))
+    return CurrentUserResponse(
+        user=AuthenticatedUser(id=user.id, username=user.username, avatar_url=user.avatar_url)
+    )
 
 
 @router.get("/providers", response_model=ProviderResponse)
@@ -135,6 +156,8 @@ async def google_callback(
     if not profile or not profile.get("sub") or profile.get("email_verified") is not True:
         return RedirectResponse("/?authError=google-unverified", status_code=303)
 
-    user = await get_or_create_google_user(db, str(profile["sub"]))
+    user = await get_or_create_google_user(
+        db, str(profile["sub"]), verified_google_avatar(profile)
+    )
     set_authenticated_session(request, user)
     return RedirectResponse("/", status_code=303)

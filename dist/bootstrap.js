@@ -29,7 +29,7 @@
   function renderAuth(errorMessage = '') {
     document.querySelector('#nav').replaceChildren();
     document.querySelector('#title').textContent = 'Đăng nhập để học và đồng bộ';
-    const topButton = document.querySelector('header > button');
+    const topButton = document.querySelector('#header-import');
     if (topButton) topButton.style.display = 'none';
 
     document.querySelector('#app').innerHTML = `
@@ -170,9 +170,41 @@
 
   function addAccountControls() {
     const header = document.querySelector('main header');
+    const accountControl = document.createElement('div');
+    accountControl.className = 'account-control';
+
+    const avatarButton = document.createElement('button');
+    avatarButton.className = 'account-avatar';
+    avatarButton.type = 'button';
+    avatarButton.setAttribute('aria-label', `Tài khoản ${currentUser.username}`);
+    avatarButton.setAttribute('aria-haspopup', 'true');
+    avatarButton.setAttribute('aria-expanded', 'false');
+
+    const initials = currentUser.username.slice(0, 1).toLocaleUpperCase();
+    const fallback = document.createElement('span');
+    fallback.className = 'account-avatar-fallback';
+    fallback.textContent = initials;
+    avatarButton.append(fallback);
+    if (currentUser.avatar_url) {
+      const image = document.createElement('img');
+      image.src = currentUser.avatar_url;
+      image.alt = '';
+      image.referrerPolicy = 'no-referrer';
+      image.addEventListener('error', () => image.replaceWith(fallback), { once: true });
+      avatarButton.replaceChildren(image);
+    }
+
+    const menu = document.createElement('div');
+    menu.className = 'account-menu';
+    menu.hidden = true;
+    const username = document.createElement('span');
+    username.className = 'account-name';
+    username.textContent = currentUser.username;
+
     const logoutButton = document.createElement('button');
+    logoutButton.className = 'account-logout';
     logoutButton.type = 'button';
-    logoutButton.textContent = `Đăng xuất (${currentUser.username})`;
+    logoutButton.textContent = 'Đăng xuất';
     logoutButton.addEventListener('click', async () => {
       logoutButton.disabled = true;
       try {
@@ -185,14 +217,28 @@
         logoutButton.disabled = false;
       }
     });
-    header.append(logoutButton);
+
+    avatarButton.addEventListener('click', () => {
+      menu.hidden = !menu.hidden;
+      avatarButton.setAttribute('aria-expanded', String(!menu.hidden));
+    });
+    document.addEventListener('click', (event) => {
+      if (!accountControl.contains(event.target)) {
+        menu.hidden = true;
+        avatarButton.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    menu.append(username, logoutButton);
+    accountControl.append(avatarButton, menu);
+    header.querySelector('.header-actions').append(accountControl);
   }
 
   function startCore() {
     if (coreLoaded) return;
     coreLoaded = true;
     installStudyDataBridge();
-    const topButton = document.querySelector('header > button');
+    const topButton = document.querySelector('#header-import');
     if (topButton) topButton.style.display = '';
     addAccountControls();
     const script = document.createElement('script');

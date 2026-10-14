@@ -35,13 +35,18 @@ async def authenticate_user(db: AsyncSession, username: str, password: str) -> U
     return user
 
 
-async def get_or_create_google_user(db: AsyncSession, google_sub: str) -> User:
+async def get_or_create_google_user(
+    db: AsyncSession, google_sub: str, avatar_url: str | None = None
+) -> User:
     user = await users.get_by_google_sub(db, google_sub)
     if user is not None:
+        if user.avatar_url != avatar_url:
+            user.avatar_url = avatar_url
+            await db.commit()
         return user
 
     username = f"google_{sha256(google_sub.encode('utf-8')).hexdigest()[:24]}"
-    user = await users.create(db, username, google_sub=google_sub)
+    user = await users.create(db, username, google_sub=google_sub, avatar_url=avatar_url)
     await study_data.create_for_user(db, user.id, load_seed_data())
     try:
         await db.commit()

@@ -19,11 +19,13 @@ class UserRepository:
         username: str,
         password_hash: str | None = None,
         google_sub: str | None = None,
+        avatar_url: str | None = None,
     ) -> User:
         user = User(
             username=username,
             password_hash=password_hash,
             google_sub=google_sub,
+            avatar_url=avatar_url,
         )
         db.add(user)
         await db.flush()

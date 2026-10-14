@@ -8,6 +8,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from app.api.routes.auth import verified_google_avatar
 from app.core.config import Settings
 from app.db.base import Base
 from app.main import create_app
@@ -55,6 +56,11 @@ async def test_registration_study_data_and_logout_are_account_scoped(
     )
     assert registration.status_code == 201
     assert registration.json()["username"] == "study.user"
+    assert registration.json()["avatar_url"] is None
+
+    current_user = await client.get("/api/auth/me")
+    assert current_user.status_code == 200
+    assert current_user.json()["user"]["avatar_url"] is None
 
     study_response = await client.get("/api/study-data")
     assert study_response.status_code == 200
@@ -133,6 +139,19 @@ async def test_auth_rejects_invalid_password_duplicate_username_and_bad_origin(
         headers={"Origin": "https://attacker.example"},
     )
     assert wrong_origin.status_code == 403
+
+
+async def test_google_avatar_url_validation() -> None:
+    assert (
+        verified_google_avatar({"picture": "https://lh3.googleusercontent.com/avatar"})
+        == "https://lh3.googleusercontent.com/avatar"
+    )
+    assert verified_google_avatar({"picture": "http://lh3.googleusercontent.com/avatar"}) is None
+    assert verified_google_avatar({"picture": "https://attacker.example/avatar"}) is None
+    assert (
+        verified_google_avatar({"picture": "https://user@lh3.googleusercontent.com/avatar"})
+        is None
+    )
 
 
 async def test_study_data_rejects_invalid_ids_and_duplicate_items(

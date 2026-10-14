@@ -7,11 +7,43 @@
   const baseQuizHTML = quizHTML;
   const baseFiltered = filtered;
   const baseGo = go;
+  let lastRenderedView = view;
+  const viewHistory = [];
+  let pendingPreviousView = null;
   let activeDeckFolder = '';
   let activeDeckName = '';
   let activeStudySet = null;
   let activeCourseId = '';
   let flashcardSets = [];
+
+  function updateBackButton() {
+    const button = document.querySelector('#app-back');
+    if (button) button.hidden = viewHistory.length === 0;
+  }
+
+  function goBack() {
+    let previousState = null;
+    while (viewHistory.length && !previousState) {
+      const candidate = viewHistory.pop();
+      if (candidate.view !== 'lessonDetail' ||
+        lessons.some((course) => course.id === candidate.activeCourseId)) {
+        previousState = candidate;
+      }
+    }
+    if (!previousState) {
+      updateBackButton();
+      return;
+    }
+    activeCourseId = previousState.activeCourseId;
+    activeStudySet = previousState.activeStudySet;
+    view = previousState.view;
+    lastRenderedView = previousState.view;
+    render();
+    window.scrollTo?.({ top: 0, behavior: 'smooth' });
+  }
+
+  document.querySelector('#app-back')?.addEventListener('click', goBack);
+  window.goBack = goBack;
 
   menus.push(['grammar', '文', 'Ngữ pháp']);
   menus.push(['sets', '▦', 'Bộ flashcard']);
@@ -632,9 +664,15 @@
   };
 
   go = function (nextView) {
+    pendingPreviousView = {
+      view,
+      activeCourseId,
+      activeStudySet
+    };
     if (nextView !== 'flash') activeStudySet = null;
     if (nextView !== 'lessonDetail') activeCourseId = '';
     baseGo(nextView);
+    pendingPreviousView = null;
   };
 
   filtered = function () {
@@ -665,6 +703,15 @@
   }
 
   render = function () {
+    if (view !== lastRenderedView) {
+      viewHistory.push(pendingPreviousView || {
+        view: lastRenderedView,
+        activeCourseId,
+        activeStudySet
+      });
+      pendingPreviousView = null;
+      lastRenderedView = view;
+    }
     if (view === 'library') {
       $('#nav').innerHTML = menus.map(([key, icon, title]) =>
         `<button class="${key === view ? 'active' : ''}" onclick="go('${key}')">${icon} &nbsp; ${title}</button>`
@@ -672,6 +719,7 @@
       $('#title').textContent = 'Kho bài học';
       $('#app').innerHTML = lessonsPage();
       $('#create-lesson-form').onsubmit = createStudyLesson;
+      updateBackButton();
       return;
     }
     if (view === 'lessonDetail') {
@@ -686,6 +734,7 @@
       $('#title').textContent = course.name;
       $('#app').innerHTML = lessonDetailPage(course);
       $('#add-lesson-card').onsubmit = (event) => addStudyCard(event, course.id);
+      updateBackButton();
       return;
     }
     if (view === 'sets') {
@@ -694,6 +743,7 @@
       ).join('');
       $('#title').textContent = 'Bộ flashcard';
       $('#app').innerHTML = flashcardSetsPage();
+      updateBackButton();
       return;
     }
     if (view === 'grammar') {
@@ -703,6 +753,7 @@
       $('#title').textContent = 'Học ngữ pháp N3';
       $('#app').innerHTML = grammarPage();
       $('#create-grammar-form').onsubmit = createGrammarPattern;
+      updateBackButton();
       return;
     }
     baseRender();
@@ -731,6 +782,7 @@
         row.append(button);
       }
     }
+    updateBackButton();
   };
 
   edit = function (id) {
