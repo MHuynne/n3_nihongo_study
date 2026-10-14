@@ -276,8 +276,8 @@ async def test_health_and_static_frontend_are_served(client: httpx.AsyncClient) 
     assert (await client.get("/api/health/ready")).json() == {"status": "ok"}
     page = await client.get("/")
     assert page.status_code == 200
-    assert 'src="bootstrap.js?v=fd21b70"' in page.text
-    assert 'href="auth.css?v=fd21b70"' in page.text
+    assert 'src="bootstrap.js?v=browser-history-1"' in page.text
+    assert 'href="auth.css?v=browser-history-1"' in page.text
     grammar_script = await client.get("/grammar.js")
     assert grammar_script.status_code == 200
     assert "startGrammarQuiz" in grammar_script.text
