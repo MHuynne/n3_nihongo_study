@@ -31,6 +31,8 @@ class StudyItem(BaseModel):
     context: str = Field(default="", max_length=4000)
     jlpt_note: str = Field(default="", max_length=4000)
     study_note: str = Field(default="", max_length=4000)
+    deck_folder: str = Field(default="", max_length=120)
+    deck_name: str = Field(default="", max_length=120)
 
 
 class ReviewProgress(BaseModel):

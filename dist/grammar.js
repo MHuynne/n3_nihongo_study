@@ -5,8 +5,15 @@
   const baseEdit = edit;
   const baseNormalizeRows = normalizeRows;
   const baseQuizHTML = quizHTML;
+  const baseFiltered = filtered;
+  const baseGo = go;
+  let activeDeckFolder = '';
+  let activeDeckName = '';
+  let activeStudySet = null;
+  let flashcardSets = [];
 
   menus.push(['grammar', '文', 'Ngữ pháp']);
+  menus.push(['sets', '▦', 'Bộ flashcard']);
 
   normalizeRows = function (rows, name) {
     if (!rows.length) return { items: [], skipped: 0 };
@@ -24,7 +31,9 @@
       usage: ['cach_dung', 'cách dùng', 'usage'],
       context: ['ngu_canh', 'ngữ cảnh', 'context'],
       jlpt_note: ['luu_y_jlpt', 'lưu ý jlpt', 'jlpt_note', 'jlpt note'],
-      study_note: ['ghi_chu_vo', 'ghi chú vở', 'study_note', 'ghi chú']
+      study_note: ['ghi_chu_vo', 'ghi chú vở', 'study_note', 'ghi chú'],
+      deck_folder: ['thu_muc', 'thư mục', 'folder', 'chủ đề'],
+      deck_name: ['bo_flashcard', 'bộ flashcard', 'deck', 'tên bộ', 'ten_bo']
     };
     const header = rows[0].map(normalize);
     const columns = Object.fromEntries(
@@ -60,7 +69,9 @@
         usage: value('usage'),
         context: value('context'),
         jlpt_note: value('jlpt_note'),
-        study_note: value('study_note')
+        study_note: value('study_note'),
+        deck_folder: value('deck_folder') || activeDeckFolder,
+        deck_name: value('deck_name') || activeDeckName
       });
     }
     return { items, skipped };
@@ -112,6 +123,100 @@
     <div class="notice">Tài liệu JLPT này là ghi chú tự học từ nội dung bạn nhập, không phải đề thi hay đáp án chính thức.</div>`;
   }
 
+  function rebuildFlashcardSets() {
+    const sets = new Map();
+    for (const item of data) {
+      const folder = item.deck_folder || 'Chưa xếp bộ';
+      const name = item.deck_name || 'Thẻ cũ / chưa xếp';
+      const key = `${folder}\u0000${name}`;
+      if (!sets.has(key)) sets.set(key, { folder, name, items: [] });
+      sets.get(key).items.push(item);
+    }
+    flashcardSets = [...sets.values()];
+  }
+
+  function flashcardSetsPage() {
+    rebuildFlashcardSets();
+    const folders = new Map();
+    for (const set of flashcardSets) {
+      if (!folders.has(set.folder)) folders.set(set.folder, []);
+      folders.get(set.folder).push(set);
+    }
+    return `<section class="card">
+      <span class="badge">TẠO BỘ FLASHCARD</span>
+      <h2>Nhập file và xếp thẻ vào thư mục</h2>
+      <p>Đặt tên chủ đề/thư mục và tên bộ thẻ. Một file XLSX có thể tạo riêng một bộ; nhập lại vào cùng tên để bổ sung thẻ.</p>
+      <form id="flashcard-set-form">
+        <div class="formgrid">
+          <label>Thư mục / chủ đề
+            <input id="flashcard-folder" required maxlength="120" placeholder="Ví dụ: Ngữ pháp N3" value="${esc(activeDeckFolder)}">
+          </label>
+          <label>Tên bộ flashcard
+            <input id="flashcard-deck" required maxlength="120" placeholder="Ví dụ: Bài 01 · Mẫu câu" value="${esc(activeDeckName)}">
+          </label>
+        </div>
+        <p><label>Chọn file XLSX / CSV / TSV
+          <input id="flashcard-file" type="file" accept=".xlsx,.csv,.tsv" required
+            onchange="loadFlashcardSetFile(this.files[0])">
+        </label></p>
+      </form>
+      <div id="preview"></div>
+      <p class="muted">File dùng cột từ mẫu Excel hiện tại. Có thể thêm cột thu_muc/folder và bo_flashcard/deck; nếu để trống các cột này thì tên ở biểu mẫu được dùng. Có thể đặt loại là “Ngữ pháp” để nhập bộ thẻ ngữ pháp.</p>
+      <a class="button" href="Mau_nhap_N3.xlsx" download>↓ Tải mẫu XLSX</a>
+    </section>
+    ${folders.size ? [...folders.entries()].map(([folder, sets]) => `<section class="deck-folder">
+      <h2>📁 ${esc(folder)}</h2>
+      <div class="grid">${sets.map((set) => {
+        const index = flashcardSets.indexOf(set);
+        return `<article class="card">
+          <span class="badge">${set.items.length} thẻ</span>
+          <h3>${esc(set.name)}</h3>
+          <p>${esc([...new Set(set.items.map((item) => item.category))].join(' · '))}</p>
+          <button class="primary" onclick="startFlashcardSet(${index})">Học bộ này →</button>
+        </article>`;
+      }).join('')}</div>
+    </section>`).join('') : '<div class="empty">Chưa có bộ flashcard. Đặt tên thư mục và bộ ở trên rồi chọn file để bắt đầu.</div>'}`;
+  }
+
+  window.loadFlashcardSetFile = function (file) {
+    const folder = $('#flashcard-folder').value.trim();
+    const name = $('#flashcard-deck').value.trim();
+    if (!folder || !name) return toast('Nhập tên thư mục và tên bộ flashcard trước.');
+    activeDeckFolder = folder;
+    activeDeckName = name;
+    return loadFile(file);
+  };
+
+  window.startFlashcardSet = function (index) {
+    rebuildFlashcardSets();
+    const selected = flashcardSets[index];
+    if (!selected) return toast('Không tìm thấy bộ flashcard.');
+    activeStudySet = { folder: selected.folder, name: selected.name };
+    lesson = '';
+    category = '';
+    query = '';
+    onlyWeak = false;
+    deck = selected.items;
+    idx = 0;
+    flipped = false;
+    view = 'flash';
+    render();
+  };
+
+  go = function (nextView) {
+    if (nextView !== 'flash') activeStudySet = null;
+    baseGo(nextView);
+  };
+
+  filtered = function () {
+    const items = baseFiltered();
+    if (!activeStudySet) return items;
+    return items.filter((item) =>
+      (item.deck_folder || 'Chưa xếp bộ') === activeStudySet.folder &&
+      (item.deck_name || 'Thẻ cũ / chưa xếp') === activeStudySet.name
+    );
+  };
+
   function grammarFlashBack() {
     const card = document.querySelector('.flash');
     const item = deck[idx];
@@ -131,6 +236,14 @@
   }
 
   render = function () {
+    if (view === 'sets') {
+      $('#nav').innerHTML = menus.map(([key, icon, title]) =>
+        `<button class="${key === view ? 'active' : ''}" onclick="go('${key}')">${icon} &nbsp; ${title}</button>`
+      ).join('');
+      $('#title').textContent = 'Bộ flashcard';
+      $('#app').innerHTML = flashcardSetsPage();
+      return;
+    }
     if (view === 'grammar') {
       $('#nav').innerHTML = menus.map(([key, icon, title]) =>
         `<button class="${key === view ? 'active' : ''}" onclick="go('${key}')">${icon} &nbsp; ${title}</button>`
@@ -270,6 +383,31 @@
     );
   };
 
+  const baseCommitImport = commitImport;
+  commitImport = function () {
+    if (!activeDeckName) return baseCommitImport();
+    const keys = new Set(data.map((item) =>
+      [item.deck_folder, item.deck_name, item.lesson, item.category, item.term].join('\0')
+    ));
+    let added = 0;
+    for (const item of pending) {
+      item.deck_folder = item.deck_folder || activeDeckFolder;
+      item.deck_name = item.deck_name || activeDeckName;
+      const key = [item.deck_folder, item.deck_name, item.lesson, item.category, item.term].join('\0');
+      if (keys.has(key)) continue;
+      data.push(item);
+      keys.add(key);
+      added++;
+    }
+    pending = [];
+    save();
+    activeDeckName = '';
+    activeDeckFolder = '';
+    view = 'sets';
+    render();
+    toast(`Đã thêm ${added} thẻ vào bộ flashcard; bỏ qua thẻ trùng trong cùng bộ.`);
+  };
+
   window.downloadGrammarTemplate = function () {
     const rows = [
       ['bai', 'loai', 'tieng_nhat', 'cach_doc', 'han_viet', 'nghia', 'vi_du', 'dich_vi_du', 'cong_thuc', 'cach_dung', 'ngu_canh', 'luu_y_jlpt', 'ghi_chu_vo'],
@@ -284,6 +422,14 @@
     link.download = 'mau_nhap_ngu_phap_n3.csv';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const importHTMLWithGrammar = importHTML;
+  importHTML = function () {
+    return importHTMLWithGrammar().replace(
+      'Cột: bai, loai, tieng_nhat, cach_doc, han_viet, nghia, vi_du, dich_vi_du, cong_thuc, cach_dung, ngu_canh, luu_y_jlpt, ghi_chu_vo.',
+      'Cột: bai, loai, tieng_nhat, cach_doc, han_viet, nghia, vi_du, dich_vi_du, cong_thuc, cach_dung, ngu_canh, luu_y_jlpt, ghi_chu_vo, thu_muc, bo_flashcard.'
+    );
   };
 
   render();
