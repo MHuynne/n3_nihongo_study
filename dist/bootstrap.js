@@ -242,10 +242,10 @@
     if (topButton) topButton.style.display = '';
     addAccountControls();
     const script = document.createElement('script');
-    script.src = '/app.js';
+    script.src = '/app.js?v=fd21b70';
     script.onload = () => {
       const grammarScript = document.createElement('script');
-      grammarScript.src = '/grammar.js';
+      grammarScript.src = '/grammar.js?v=fd21b70';
       grammarScript.onerror = () => {
         console.error('Unable to load grammar study features.');
         document.querySelector('#app').innerHTML = '<div class="notice">Không tải được phần học ngữ pháp. Hãy tải lại trang để thử lại.</div>';
