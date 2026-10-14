@@ -32,7 +32,7 @@ class StudyItem(BaseModel):
     jlpt_note: str = Field(default="", max_length=4000)
     study_note: str = Field(default="", max_length=4000)
     deck_folder: str = Field(default="", max_length=120)
-    deck_name: str = Field(default="", max_length=120)
+    deck_name: str = Field(default="", max_length=200)
 
 
 class ReviewProgress(BaseModel):
@@ -56,6 +56,16 @@ class StudyNote(BaseModel):
     memo: str = Field(default="", max_length=4000)
 
 
+class StudyLesson(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    topic: str = Field(min_length=1, max_length=120)
+    name: str = Field(min_length=1, max_length=200)
+    created_at: str = Field(min_length=1, max_length=100)
+    description: str = Field(default="", max_length=2000)
+
+
 class QuizHistory(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -72,6 +82,7 @@ class StudyDataPayload(BaseModel):
     state: dict[SafeId, ReviewProgress] = Field(max_length=10000)
     notes: list[StudyNote] = Field(max_length=5000)
     history: list[QuizHistory] = Field(max_length=5000)
+    lessons: list[StudyLesson] = Field(default_factory=list, max_length=1000)
 
     @model_validator(mode="after")
     def validate_unique_ids(self) -> StudyDataPayload:
@@ -81,6 +92,9 @@ class StudyDataPayload(BaseModel):
         note_ids = [note.id for note in self.notes]
         if len(note_ids) != len(set(note_ids)):
             raise ValueError("Study note IDs must be unique.")
+        lesson_ids = [lesson.id for lesson in self.lessons]
+        if len(lesson_ids) != len(set(lesson_ids)):
+            raise ValueError("Study lesson IDs must be unique.")
         return self
 
     def as_json(self) -> dict[str, Any]:

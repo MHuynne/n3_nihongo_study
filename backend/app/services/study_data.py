@@ -29,5 +29,10 @@ async def get_or_create_study_data(db: AsyncSession, user_id: int) -> dict[str, 
 
 
 async def save_study_data(db: AsyncSession, user_id: int, payload: StudyDataPayload) -> None:
-    await repository.save_for_user(db, user_id, payload.as_json())
+    saved_payload = payload.as_json()
+    if "lessons" not in payload.model_fields_set:
+        existing = await repository.get_for_user(db, user_id)
+        if existing is not None:
+            saved_payload["lessons"] = existing.payload.get("lessons", [])
+    await repository.save_for_user(db, user_id, saved_payload)
     await db.commit()

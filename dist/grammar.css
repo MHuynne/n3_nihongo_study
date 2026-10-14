@@ -4,3 +4,46 @@
 .grammar-back{border-top:1px solid var(--line);margin-top:18px;padding-top:10px;text-align:left;line-height:1.7}
 .deck-folder{margin-top:28px}
 .deck-folder>.grid{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.lesson-hero,.lesson-detail-hero{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:22px;margin-bottom:22px;padding:30px 34px;border:1px solid #dce8dc;border-radius:22px;background:linear-gradient(120deg,#e8f2e8 0%,#f3f3e9 58%,#e5efe9 100%)}
+.lesson-hero h2,.lesson-detail-hero h2{max-width:680px;margin:12px 0;font-size:clamp(22px,3vw,32px)}
+.lesson-hero p,.lesson-detail-hero p{max-width:680px;color:var(--muted);line-height:1.75}
+.lesson-hero-mark{font-family:'Noto Sans JP',sans-serif;font-size:clamp(45px,8vw,92px);color:#26796155;letter-spacing:.1em;transform:rotate(-8deg)}
+.lesson-create{margin-bottom:30px;padding:28px}
+.lesson-create form,.lesson-add-card form{display:grid;gap:16px}
+.lesson-create textarea{min-height:70px}
+.lesson-topic{margin:32px 0}
+.topic-heading{display:flex;align-items:center;justify-content:space-between;margin:0 0 14px}
+.topic-heading h2{margin:5px 0}
+.lesson-grid,.lesson-word-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,265px),1fr));gap:16px}
+.lesson-tile,.word-tile{position:relative;overflow:hidden;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;animation:lesson-rise .42s both;animation-delay:calc(var(--tile-index,0)*45ms)}
+.lesson-tile::before{position:absolute;inset:0 0 auto;height:5px;background:linear-gradient(90deg,#267961,#9bbd8f);content:''}
+.lesson-tile:hover,.word-tile:hover{transform:translateY(-4px);border-color:#b8d1bd;box-shadow:0 14px 32px #223e3612}
+.lesson-tile-top{display:flex;align-items:center;justify-content:space-between}
+.lesson-number{font-size:28px;font-weight:700;color:#26796130}
+.lesson-tile h3{margin:18px 0 7px;font-size:19px}
+.lesson-description{min-height:48px;color:var(--muted);line-height:1.65}
+.lesson-actions{margin-top:16px}
+.lesson-empty{padding:50px 24px;background:linear-gradient(140deg,#fff,#f0f5ee);border-style:dashed}
+.lesson-empty-mark{font-size:38px;color:var(--green)}
+.legacy-lessons{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:34px 0;padding:18px 20px;border-top:1px solid var(--line)}
+.legacy-lessons h2{width:100%;margin-bottom:0}
+.legacy-lessons p{margin:0}
+.back-button{margin:0 0 18px;background:transparent}
+.lesson-detail-hero{min-height:190px;background:linear-gradient(115deg,#e6f1e7,#f4f0e4 85%)}
+.lesson-detail-hero h2{font-size:clamp(25px,3.8vw,38px)}
+.lesson-content-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;margin:22px 0}
+.lesson-add-card,.lesson-import-card{padding:24px}
+.lesson-add-card h3,.lesson-import-card h3{margin:12px 0 18px}
+.file-drop{min-height:130px;display:flex;align-items:center;justify-content:center;gap:14px;margin:22px 0;padding:22px;border:1px dashed #a5c5ab;border-radius:16px;background:#f5f8f2;cursor:pointer;transition:background .2s ease,border-color .2s ease}
+.file-drop:hover{border-color:var(--green);background:#eaf3e9}
+.file-drop-icon{display:grid;width:48px;height:48px;place-items:center;border-radius:14px;background:#dfede0;color:var(--green);font-size:25px}
+.file-drop input{max-width:220px}
+.lesson-card-list{margin:32px 0}
+.lesson-card-list h2{margin:8px 0}
+.word-tile h3{margin-bottom:5px;font-size:22px}
+.word-example{padding:12px;border-radius:10px;background:#f5f7f0;line-height:1.7}
+.flash.flash-animate{animation:flash-turn .42s cubic-bezier(.2,.75,.25,1)}
+@keyframes lesson-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes flash-turn{0%{opacity:.35;transform:perspective(700px) rotateY(65deg) scale(.95)}65%{opacity:1;transform:perspective(700px) rotateY(-7deg) scale(1.01)}100%{transform:perspective(700px) rotateY(0) scale(1)}}
+@media(max-width:800px){.lesson-content-grid{grid-template-columns:1fr}.lesson-detail-hero{align-items:flex-start;flex-direction:column}.lesson-hero{padding:24px}.lesson-hero-mark{display:none}}
+@media(prefers-reduced-motion:reduce){.lesson-tile,.word-tile,.flash.flash-animate{animation:none;transition:none}}

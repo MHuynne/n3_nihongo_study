@@ -63,6 +63,7 @@ async def test_registration_study_data_and_logout_are_account_scoped(
     assert payload["notes"] == []
     assert payload["data"][0]["deck_folder"] == ""
     assert payload["data"][0]["deck_name"] == ""
+    assert payload["lessons"] == []
 
     payload["state"]["seed0"] = {"weak": True, "level": 0, "due": 1_800_000_000_000}
     saved = await client.put("/api/study-data", json=payload)
@@ -166,6 +167,15 @@ async def test_grammar_study_fields_are_saved_and_returned(client: httpx.AsyncCl
         "deck_name": "Quyết định và dự định",
     }
     payload["data"].append(grammar)
+    payload["lessons"].append(
+        {
+            "id": "lesson_test_1",
+            "topic": "Từ vựng N3",
+            "name": "Bài 01 · Con người",
+            "created_at": "2026-10-14T00:00:00Z",
+            "description": "Từ vựng chủ đề con người.",
+        }
+    )
     grammar.update(
         structure="Vる + ことにする",
         usage="Diễn tả quyết định của người nói.",
@@ -185,6 +195,14 @@ async def test_grammar_study_fields_are_saved_and_returned(client: httpx.AsyncCl
     assert saved_grammar["study_note"] == "Ghi nhớ chủ thể tự đưa ra quyết định."
     assert saved_grammar["deck_folder"] == "Ngữ pháp N3"
     assert saved_grammar["deck_name"] == "Quyết định và dự định"
+    assert returned["lessons"][0]["name"] == "Bài 01 · Con người"
+
+    legacy_payload = returned.copy()
+    legacy_payload.pop("lessons")
+    legacy_save = await client.put("/api/study-data", json=legacy_payload)
+    assert legacy_save.status_code == 200
+    preserved = (await client.get("/api/study-data")).json()
+    assert preserved["lessons"][0]["id"] == "lesson_test_1"
 
 
 async def test_health_and_static_frontend_are_served(client: httpx.AsyncClient) -> None:

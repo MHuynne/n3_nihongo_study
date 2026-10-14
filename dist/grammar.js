@@ -10,6 +10,7 @@
   let activeDeckFolder = '';
   let activeDeckName = '';
   let activeStudySet = null;
+  let activeCourseId = '';
   let flashcardSets = [];
 
   menus.push(['grammar', '文', 'Ngữ pháp']);
@@ -132,6 +133,10 @@
       if (!sets.has(key)) sets.set(key, { folder, name, items: [] });
       sets.get(key).items.push(item);
     }
+    for (const course of lessons) {
+      const key = `${course.topic}\u0000${course.name}`;
+      if (!sets.has(key)) sets.set(key, { folder: course.topic, name: course.name, items: [] });
+    }
     flashcardSets = [...sets.values()];
   }
 
@@ -168,14 +173,319 @@
       <h2>📁 ${esc(folder)}</h2>
       <div class="grid">${sets.map((set) => {
         const index = flashcardSets.indexOf(set);
+        const course = lessons.find((entry) => entry.topic === set.folder && entry.name === set.name);
         return `<article class="card">
           <span class="badge">${set.items.length} thẻ</span>
           <h3>${esc(set.name)}</h3>
+          ${course ? `<p>${esc(course.description || '')}</p>
+            <small>Ngày tạo: ${new Date(course.created_at).toLocaleDateString('vi-VN')}</small>` : ''}
           <p>${esc([...new Set(set.items.map((item) => item.category))].join(' · '))}</p>
-          <button class="primary" onclick="startFlashcardSet(${index})">Học bộ này →</button>
+          ${course ? `<p><button onclick="openStudyLesson('${course.id}')">Mở bài học</button></p>` : ''}
+          <button class="primary" ${set.items.length ? `onclick="startFlashcardSet(${index})"` : 'disabled'}>Học bộ này →</button>
         </article>`;
       }).join('')}</div>
     </section>`).join('') : '<div class="empty">Chưa có bộ flashcard. Đặt tên thư mục và bộ ở trên rồi chọn file để bắt đầu.</div>'}`;
+  }
+
+  function lessonCards(course) {
+    return data.filter((item) =>
+      (item.deck_folder || '') === course.topic &&
+      (item.deck_name || '') === course.name
+    );
+  }
+
+  function organizeLegacyStudyCards() {
+    const known = new Set(lessons.map((course) => `${course.topic}\u0000${course.name}`));
+    let changed = false;
+    for (const item of data) {
+      const topic = String(item.deck_folder || '').trim() || item.category || 'Flashcard cũ';
+      const name = String(item.deck_name || '').trim() || item.lesson || 'Bộ từ đã soạn';
+      if (item.deck_folder !== topic || item.deck_name !== name || item.lesson !== name) {
+        item.deck_folder = topic;
+        item.deck_name = name;
+        item.lesson = name;
+        changed = true;
+      }
+      const key = `${topic}\u0000${name}`;
+      if (!known.has(key)) {
+        lessons.push({
+          id: crypto.randomUUID().replace(/-/g, '_'),
+          topic,
+          name,
+          created_at: new Date().toISOString(),
+          description: 'Bài học được tự tạo để sắp xếp flashcard đã có.'
+        });
+        known.add(key);
+        changed = true;
+      }
+    }
+    if (changed) save();
+  }
+
+  function lessonsPage() {
+    const grouped = new Map();
+    for (const course of lessons) {
+      if (!grouped.has(course.topic)) grouped.set(course.topic, []);
+      grouped.get(course.topic).push(course);
+    }
+    return `<section class="lesson-hero">
+      <div><span class="badge">KHO BÀI HỌC</span>
+        <h2>Từ vựng của bạn, sắp xếp theo từng chủ đề</h2>
+        <p>Tạo bài học, thêm thẻ bằng biểu mẫu hoặc Excel, rồi ôn đúng bộ đã tạo.</p>
+      </div>
+      <div class="lesson-hero-mark" aria-hidden="true">語彙</div>
+    </section>
+    <section class="card lesson-create">
+      <h2>＋ Tạo bài học mới</h2>
+      <form id="create-lesson-form">
+        <div class="formgrid">
+          <label>Chủ đề / thư mục
+            <input name="topic" required maxlength="120" placeholder="Ví dụ: Đời sống hằng ngày">
+          </label>
+          <label>Tên bài học
+            <input name="name" required maxlength="120" placeholder="Ví dụ: Bài 01 · Ở nhà hàng">
+          </label>
+        </div>
+        <label>Mô tả nội dung từ vựng (không bắt buộc)
+          <textarea name="description" maxlength="2000" placeholder="Món ăn, gọi món, thanh toán…"></textarea>
+        </label>
+        <button class="primary">Tạo bài học và thêm flashcard →</button>
+      </form>
+    </section>
+    ${grouped.size ? [...grouped.entries()].map(([topic, courses]) => `<section class="lesson-topic">
+      <header class="topic-heading"><div><span class="badge">CHỦ ĐỀ</span><h2>📁 ${esc(topic)}</h2></div>
+        <small>${courses.length} bài học</small>
+      </header>
+      <div class="lesson-grid">${courses.map((course, index) => {
+        const count = lessonCards(course).length;
+        return `<article class="card lesson-tile" style="--tile-index:${index % 6}">
+          <div class="lesson-tile-top"><span class="badge">${count} flashcard</span>
+            <span class="lesson-number">${String(index + 1).padStart(2, '0')}</span></div>
+          <h3>${esc(course.name)}</h3>
+          <p class="lesson-description">${esc(course.description || 'Chưa thêm mô tả cho bài học này.')}</p>
+          <small>Đã tạo ${esc(new Date(course.created_at).toLocaleDateString('vi-VN'))}</small>
+          <div class="row lesson-actions">
+            <button class="primary" onclick="openStudyLesson('${course.id}')">Mở bài học →</button>
+            ${count ? `<button onclick="studyCourse('${course.id}')">Học ${count} thẻ</button>` : ''}
+          </div>
+        </article>`;
+      }).join('')}</div>
+    </section>`).join('') : `<div class="empty lesson-empty">
+      <div class="lesson-empty-mark">✦</div><h3>Chưa có bài học nào</h3>
+      <p>Tạo chủ đề đầu tiên ở trên, rồi thêm thẻ học thủ công hoặc nhập file Excel.</p>
+    </div>`}
+    <section class="legacy-lessons">
+      <h2>Flashcard chưa xếp vào bài học</h2>
+      <p class="muted">Các thẻ cũ được giữ nguyên. Chúng vẫn có trong mục Flashcard và Bộ flashcard.</p>
+      <span class="badge">${data.filter((item) => !item.deck_name).length} thẻ chưa xếp</span>
+      <button onclick="go('sets')">Xem tất cả bộ flashcard →</button>
+    </section>`;
+  }
+
+  function lessonDetailPage(course) {
+    const cards = lessonCards(course);
+    return `<button class="back-button" onclick="backToStudyLessons()">← Quay lại kho bài học</button>
+      <section class="lesson-detail-hero">
+        <div><span class="badge">${esc(course.topic)}</span>
+          <h2>${esc(course.name)}</h2>
+          <p>${esc(course.description || 'Bài học từ vựng và flashcard do bạn tạo.')}</p>
+          <small>Ngày tạo: ${esc(new Date(course.created_at).toLocaleDateString('vi-VN'))} · ${cards.length} flashcard</small>
+        </div>
+        <div class="row">
+          <button onclick="editStudyLesson('${course.id}')">Sửa thông tin bài</button>
+          ${cards.length ? `<button class="primary" onclick="studyCourse('${course.id}')">Học flashcard →</button>` : ''}
+        </div>
+      </section>
+      <div class="lesson-content-grid">
+        <section class="card lesson-add-card">
+          <span class="badge">TẠO FLASHCARD</span><h3>Thêm thẻ bằng biểu mẫu</h3>
+          <form id="add-lesson-card">
+            <label>Từ / cụm từ tiếng Nhật<input name="term" required maxlength="500" placeholder="例：予約する"></label>
+            <div class="formgrid">
+              <label>Cách đọc<input name="reading" maxlength="4000"></label>
+              <label>Phân môn<select name="category">${cats.map((itemCategory) =>
+                `<option>${esc(itemCategory)}</option>`).join('')}</select></label>
+            </div>
+            <label>Nghĩa / giải thích<textarea name="meaning" required maxlength="4000"></textarea></label>
+            <label>Ví dụ tiếng Nhật<textarea name="example" maxlength="4000"></textarea></label>
+            <label>Dịch ví dụ<textarea name="translation" maxlength="4000"></textarea></label>
+            <button class="primary">Lưu flashcard</button>
+          </form>
+        </section>
+        <section class="card lesson-import-card">
+          <span class="badge">NHẬP NHIỀU THẺ</span><h3>Thêm từ file Excel</h3>
+          <p>Chọn XLSX, CSV hoặc TSV. Các thẻ sẽ tự vào bài học <b>${esc(course.name)}</b>.</p>
+          <label class="file-drop">
+            <span class="file-drop-icon">↥</span>
+            <span><b>Chọn file để nhập</b><small> XLSX · CSV · TSV · tối đa 10 MB</small></span>
+            <input type="file" accept=".xlsx,.csv,.tsv" onchange="loadCourseFile('${course.id}',this.files[0])">
+          </label>
+          <div id="preview"></div>
+          <small>Cần cột tieng_nhat và nghia; vi_du và dich_vi_du không bắt buộc.</small>
+        </section>
+      </div>
+      <section class="lesson-card-list">
+        <div class="row between"><div><span class="badge">NỘI DUNG BÀI</span><h2>Flashcard trong bài</h2></div>
+          <span class="badge">${cards.length} thẻ</span></div>
+        ${cards.length ? `<div class="lesson-word-grid">${cards.map((item) => `<article class="card word-tile">
+          <span class="badge">${esc(item.category)}</span><h3 class="jp">${esc(item.term)}</h3>
+          ${item.reading ? `<p class="muted">${esc(item.reading)}</p>` : ''}
+          <p>${esc(item.meaning)}</p>
+          ${item.example ? `<p class="jp word-example">${esc(item.example)}</p>` : ''}
+          <div class="row"><button onclick="edit('${item.id}')">Sửa thẻ</button>
+            <button onclick="studyOneCard('${item.id}')">Học thẻ</button></div>
+        </article>`).join('')}</div>` : `<div class="empty"><p>Bài học đang trống.</p>
+          <p>Thêm thẻ bằng biểu mẫu hoặc nhập Excel ở trên.</p></div>`}
+      </section>`;
+  }
+
+  function createStudyLesson(event) {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const topic = String(values.topic || '').trim();
+    const name = String(values.name || '').trim();
+    if (!topic || !name) return toast('Nhập chủ đề và tên bài học.');
+    const duplicate = lessons.some((course) =>
+      course.topic.toLocaleLowerCase() === topic.toLocaleLowerCase() &&
+      course.name.toLocaleLowerCase() === name.toLocaleLowerCase()
+    );
+    if (duplicate) return toast('Bài này đã có trong chủ đề đó.');
+    const course = {
+      id: crypto.randomUUID().replace(/-/g, '_'),
+      topic,
+      name,
+      created_at: new Date().toISOString(),
+      description: String(values.description || '').trim()
+    };
+    lessons.push(course);
+    save();
+    openStudyLesson(course.id);
+    toast('Đã tạo bài học. Thêm thẻ ngay bằng biểu mẫu hoặc Excel.');
+  }
+
+  function openStudyLesson(id) {
+    activeCourseId = id;
+    const course = lessons.find((entry) => entry.id === id);
+    if (!course) return toast('Không tìm thấy bài học.');
+    view = 'lessonDetail';
+    render();
+    window.scrollTo?.({ top: 0, behavior: 'smooth' });
+  }
+
+  function backToStudyLessons() {
+    activeCourseId = '';
+    go('library');
+    window.scrollTo?.({ top: 0, behavior: 'smooth' });
+  }
+
+  function editStudyLesson(id) {
+    const course = lessons.find((entry) => entry.id === id);
+    if (!course) return toast('Không tìm thấy bài học.');
+    $('#app').innerHTML = `<button class="back-button" onclick="openStudyLesson('${id}')">← Quay lại bài học</button>
+      <section class="card lesson-edit-form"><span class="badge">CHỈNH SỬA BÀI HỌC</span>
+        <h2>${esc(course.name)}</h2><form id="edit-study-lesson">
+          <div class="formgrid">
+            <label>Chủ đề<input name="topic" required maxlength="120" value="${esc(course.topic)}"></label>
+            <label>Tên bài học<input name="name" required maxlength="120" value="${esc(course.name)}"></label>
+          </div>
+          <label>Mô tả<textarea name="description" maxlength="2000">${esc(course.description)}</textarea></label>
+          <button class="primary">Lưu thay đổi</button>
+        </form></section>`;
+    $('#edit-study-lesson').onsubmit = (event) => {
+      event.preventDefault();
+      const values = Object.fromEntries(new FormData(event.currentTarget));
+      const topic = String(values.topic || '').trim();
+      const name = String(values.name || '').trim();
+      if (lessons.some((other) => other.id !== id &&
+        other.topic.toLocaleLowerCase() === topic.toLocaleLowerCase() &&
+        other.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+        return toast('Bài này đã có trong chủ đề đó.');
+      }
+      const oldTopic = course.topic;
+      const oldName = course.name;
+      Object.assign(course, { topic, name, description: String(values.description || '').trim() });
+      for (const item of data) {
+        if (item.deck_folder === oldTopic && item.deck_name === oldName) {
+          item.deck_folder = topic;
+          item.deck_name = name;
+          item.lesson = name;
+        }
+      }
+      save();
+      openStudyLesson(id);
+      toast('Đã cập nhật bài học và các flashcard liên quan.');
+    };
+  }
+
+  function addStudyCard(event, id) {
+    event.preventDefault();
+    const course = lessons.find((entry) => entry.id === id);
+    if (!course) return toast('Không tìm thấy bài học.');
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const term = String(values.term || '').trim();
+    const meaning = String(values.meaning || '').trim();
+    if (!term || !meaning) return toast('Nhập từ tiếng Nhật và nghĩa của thẻ.');
+    data.push({
+      id: crypto.randomUUID().replace(/-/g, '_'),
+      term,
+      meaning,
+      reading: String(values.reading || '').trim(),
+      hanviet: '',
+      lesson: course.name,
+      category: values.category,
+      example: String(values.example || '').trim(),
+      translation: String(values.translation || '').trim(),
+      structure: '',
+      usage: '',
+      context: '',
+      jlpt_note: '',
+      study_note: '',
+      deck_folder: course.topic,
+      deck_name: course.name
+    });
+    save();
+    openStudyLesson(course.id);
+    toast('Đã thêm flashcard vào bài học.');
+  }
+
+  function loadCourseFile(id, file) {
+    const course = lessons.find((entry) => entry.id === id);
+    if (!course || !file) return;
+    activeCourseId = course.id;
+    activeDeckFolder = course.topic;
+    activeDeckName = course.name;
+    return loadFile(file);
+  }
+
+  function studyCourse(id) {
+    const course = lessons.find((entry) => entry.id === id);
+    if (!course) return toast('Không tìm thấy bài học.');
+    activeStudySet = { folder: course.topic, name: course.name };
+    lesson = '';
+    category = '';
+    query = '';
+    onlyWeak = false;
+    deck = lessonCards(course);
+    if (!deck.length) return toast('Bài học chưa có flashcard để ôn.');
+    idx = 0;
+    flipped = false;
+    view = 'flash';
+    render();
+  }
+
+  function studyOneCard(id) {
+    const item = data.find((entry) => entry.id === id);
+    if (!item) return toast('Không tìm thấy flashcard.');
+    activeStudySet = null;
+    lesson = '';
+    category = '';
+    query = '';
+    onlyWeak = false;
+    deck = [item];
+    idx = 0;
+    flipped = false;
+    view = 'flash';
+    render();
   }
 
   window.loadFlashcardSetFile = function (file) {
@@ -205,6 +515,7 @@
 
   go = function (nextView) {
     if (nextView !== 'flash') activeStudySet = null;
+    if (nextView !== 'lessonDetail') activeCourseId = '';
     baseGo(nextView);
   };
 
@@ -236,6 +547,29 @@
   }
 
   render = function () {
+    if (view === 'library') {
+      $('#nav').innerHTML = menus.map(([key, icon, title]) =>
+        `<button class="${key === view ? 'active' : ''}" onclick="go('${key}')">${icon} &nbsp; ${title}</button>`
+      ).join('');
+      $('#title').textContent = 'Kho bài học';
+      $('#app').innerHTML = lessonsPage();
+      $('#create-lesson-form').onsubmit = createStudyLesson;
+      return;
+    }
+    if (view === 'lessonDetail') {
+      const course = lessons.find((entry) => entry.id === activeCourseId);
+      if (!course) {
+        view = 'library';
+        return render();
+      }
+      $('#nav').innerHTML = menus.map(([key, icon, title]) =>
+        `<button class="${key === view ? 'active' : ''}" onclick="go('${key}')">${icon} &nbsp; ${title}</button>`
+      ).join('');
+      $('#title').textContent = course.name;
+      $('#app').innerHTML = lessonDetailPage(course);
+      $('#add-lesson-card').onsubmit = (event) => addStudyCard(event, course.id);
+      return;
+    }
     if (view === 'sets') {
       $('#nav').innerHTML = menus.map(([key, icon, title]) =>
         `<button class="${key === view ? 'active' : ''}" onclick="go('${key}')">${icon} &nbsp; ${title}</button>`
@@ -254,6 +588,7 @@
     }
     baseRender();
     if (view === 'flash') grammarFlashBack();
+    if (view === 'flash') document.querySelector('.flash')?.classList.add('flash-animate');
     if (view === 'quiz' && !quiz && category === 'Ngữ pháp') {
       const row = document.querySelector('#qmode')?.parentElement;
       if (row) {
@@ -429,8 +764,63 @@
     return importHTMLWithGrammar().replace(
       'Cột: bai, loai, tieng_nhat, cach_doc, han_viet, nghia, vi_du, dich_vi_du, cong_thuc, cach_dung, ngu_canh, luu_y_jlpt, ghi_chu_vo.',
       'Cột: bai, loai, tieng_nhat, cach_doc, han_viet, nghia, vi_du, dich_vi_du, cong_thuc, cach_dung, ngu_canh, luu_y_jlpt, ghi_chu_vo, thu_muc, bo_flashcard.'
+    ).replace(
+      'Dữ liệu được lưu trên trình duyệt hiện tại, chưa đồng bộ giữa các thiết bị.',
+      'Dữ liệu flashcard và tiến độ được đồng bộ với tài khoản của bạn.'
     );
   };
 
+  window.openStudyLesson = openStudyLesson;
+  window.backToStudyLessons = backToStudyLessons;
+  window.editStudyLesson = editStudyLesson;
+  window.studyCourse = studyCourse;
+  window.studyOneCard = studyOneCard;
+  window.loadCourseFile = loadCourseFile;
+  window.createStudyLesson = createStudyLesson;
+  window.addStudyCard = addStudyCard;
+  window.organizeLegacyStudyCards = organizeLegacyStudyCards;
+
+  const originalCommitImport = commitImport;
+  commitImport = function () {
+    if (!activeCourseId) {
+      const result = originalCommitImport();
+      organizeLegacyStudyCards();
+      render();
+      return result;
+    }
+    const course = lessons.find((entry) => entry.id === activeCourseId);
+    if (!course) return toast('Không tìm thấy bài học để nhập flashcard.');
+    const keys = new Set(data.map((item) =>
+      [item.deck_folder || '', item.deck_name || '', item.category, item.term].join('\0')
+    ));
+    let added = 0;
+    for (const item of pending) {
+      item.deck_folder = course.topic;
+      item.deck_name = course.name;
+      item.lesson = course.name;
+      const key = [item.deck_folder, item.deck_name, item.category, item.term].join('\0');
+      if (keys.has(key)) continue;
+      data.push(item);
+      keys.add(key);
+      added++;
+    }
+    pending = [];
+    save();
+    activeDeckFolder = '';
+    activeDeckName = '';
+    openStudyLesson(course.id);
+    toast(`Đã thêm ${added} flashcard vào bài học; thẻ trùng được bỏ qua.`);
+  };
+
+  const brand = document.querySelector('.brand');
+  brand?.addEventListener('click', (event) => {
+    event.preventDefault();
+    activeCourseId = '';
+    activeStudySet = null;
+    go('home');
+    window.scrollTo?.({ top: 0, behavior: 'smooth' });
+  });
+
+  organizeLegacyStudyCards();
   render();
 })();
