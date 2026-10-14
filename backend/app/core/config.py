@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     mysql_user: str
     mysql_password: SecretStr
     mysql_database: str
-    mysql_ssl: bool = False
+    mysql_ssl: bool | None = None
     mysql_ssl_ca: Path | None = None
     google_client_id: str | None = None
     google_client_secret: SecretStr | None = None
@@ -78,6 +78,8 @@ class Settings(BaseSettings):
             )
         if not self.rate_limit_storage_uri.strip():
             raise ValueError("RATE_LIMIT_STORAGE_URI must not be empty.")
+        if self.app_env == "production" and self.mysql_ssl is False:
+            raise ValueError("MYSQL_SSL cannot be disabled in production.")
         if self.app_env == "production" and (
             "*" in self.trusted_hosts or "testserver" in self.trusted_hosts
         ):
@@ -108,7 +110,10 @@ class Settings(BaseSettings):
 
     @property
     def database_connect_args(self) -> dict[str, object]:
-        if not self.mysql_ssl:
+        tls_enabled = (
+            self.mysql_ssl if self.mysql_ssl is not None else self.app_env == "production"
+        )
+        if not tls_enabled:
             return {}
         return {
             "ssl": ssl.create_default_context(

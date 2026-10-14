@@ -25,8 +25,6 @@ services:
         sync: false
       - key: MYSQL_SSL
         value: "true"
-      - key: MYSQL_SSL_CA
-        value: /etc/secrets/tidb-ca.pem
       - key: SESSION_SECRET
         generateValue: true
       - key: RATE_LIMIT_STORAGE_URI
