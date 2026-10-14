@@ -46,4 +46,17 @@
 @keyframes lesson-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes flash-turn{0%{opacity:.35;transform:perspective(700px) rotateY(65deg) scale(.95)}65%{opacity:1;transform:perspective(700px) rotateY(-7deg) scale(1.01)}100%{transform:perspective(700px) rotateY(0) scale(1)}}
 @media(max-width:800px){.lesson-content-grid{grid-template-columns:1fr}.lesson-detail-hero{align-items:flex-start;flex-direction:column}.lesson-hero{padding:24px}.lesson-hero-mark{display:none}}
+.lesson-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));align-items:stretch}
+.lesson-tile{min-width:0}
+.lesson-actions .danger{margin-left:auto}
+.grammar-create{margin:20px 0 26px}
+.grammar-create form{display:grid;gap:16px}
+.grammar-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));align-items:stretch;gap:16px}
+.grammar-card{margin:0;min-width:0}
+.grammar-card>.row:first-child{align-items:flex-start}
+.grammar-card>.row:first-child>div{min-width:0}
+.grammar-card>.row:first-child h2{overflow-wrap:anywhere}
+.grammar-card form textarea{min-height:75px}
+.grammar-card>.row button,.grammar-card form .row button{padding:9px 12px}
+.grammar-card .danger{border-color:#e8c9c3}
 @media(prefers-reduced-motion:reduce){.lesson-tile,.word-tile,.flash.flash-animate{animation:none;transition:none}}
