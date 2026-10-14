@@ -86,6 +86,10 @@ Test API dùng SQLite tạm để kiểm tra đăng ký, đăng nhập, xác th�
 - Bật HTTPS tại reverse proxy/load balancer. Đặt `FORWARDED_ALLOW_IPS` thành IP/CIDR của proxy tin cậy theo cấu hình Uvicorn; không dùng `*` tùy tiện.
 - Giới hạn inbound MySQL theo network của ứng dụng. Sao lưu database định kỳ và thử khôi phục backup.
 
+## Học ngữ pháp
+
+Chọn **Ngữ pháp** ở thanh điều hướng để xem các mẫu đã nhập, học flashcard hoặc mở quiz theo ví dụ. Trong **Nhập bài học**, nhập file XLSX/CSV/TSV với các cột cơ bản `bai`, `loai`, `tieng_nhat`, `nghia`, `vi_du`, `dich_vi_du`; có thể thêm `cong_thuc`/`structure`, `cach_dung`/`usage`, `ngu_canh`/`context`, `luu_y_jlpt`/`jlpt_note`, `ghi_chu_vo`/`study_note`. Đặt `loai` là `Ngữ pháp`. Mỗi hàng là một mẫu ngữ pháp; `tieng_nhat` là mẫu, `nghia` là ý nghĩa/cách giải thích, còn cột tùy chọn cung cấp ghi chú để học và chép vào vở. Nội dung và ghi chú được đồng bộ cùng dữ liệu tài khoản như các mục học khác.
+
 ## Dữ liệu
 
 Mật khẩu tài khoản dùng Argon2; cookie phiên được ký, `HttpOnly`, `SameSite=Lax`, và `Secure` trong production. API kiểm tra Origin, host, giới hạn request, rate-limit auth và xác thực dữ liệu bằng Pydantic. Dữ liệu học JSON được gắn với user qua khóa ngoại MySQL. Rate limit trong blueprint là bộ nhớ cục bộ cho một worker; dùng Redis/Valkey chia sẻ nếu scale nhiều worker/instance.

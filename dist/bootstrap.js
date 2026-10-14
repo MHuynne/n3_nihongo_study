@@ -197,6 +197,15 @@
     addAccountControls();
     const script = document.createElement('script');
     script.src = '/app.js';
+    script.onload = () => {
+      const grammarScript = document.createElement('script');
+      grammarScript.src = '/grammar.js';
+      grammarScript.onerror = () => {
+        console.error('Unable to load grammar study features.');
+        document.querySelector('#app').innerHTML = '<div class="notice">Không tải được phần học ngữ pháp. Hãy tải lại trang để thử lại.</div>';
+      };
+      document.body.append(grammarScript);
+    };
     script.onerror = () => renderAuth('Không tải được ứng dụng. Hãy tải lại trang để thử lại.');
     document.body.append(script);
   }

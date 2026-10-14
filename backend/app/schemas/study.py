@@ -26,6 +26,11 @@ class StudyItem(BaseModel):
     hanviet: str = Field(default="", max_length=4000)
     example: str = Field(default="", max_length=4000)
     translation: str = Field(default="", max_length=4000)
+    structure: str = Field(default="", max_length=4000)
+    usage: str = Field(default="", max_length=4000)
+    context: str = Field(default="", max_length=4000)
+    jlpt_note: str = Field(default="", max_length=4000)
+    study_note: str = Field(default="", max_length=4000)
 
 
 class ReviewProgress(BaseModel):

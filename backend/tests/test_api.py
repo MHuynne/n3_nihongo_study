@@ -147,9 +147,46 @@ async def test_study_data_rejects_invalid_ids_and_duplicate_items(
     assert invalid.status_code == 422
 
 
+async def test_grammar_study_fields_are_saved_and_returned(client: httpx.AsyncClient) -> None:
+    registered = await client.post(
+        "/api/auth/register",
+        json={"username": "grammar.user", "password": "a-strong-study-password"},
+    )
+    assert registered.status_code == 201
+    payload = (await client.get("/api/study-data")).json()
+    grammar = {
+        "id": "grammar_test_item",
+        "term": "〜ことにする",
+        "meaning": "Tự quyết định sẽ làm việc gì.",
+        "lesson": "Bài ngữ pháp",
+        "category": "Ngữ pháp",
+    }
+    payload["data"].append(grammar)
+    grammar.update(
+        structure="Vる + ことにする",
+        usage="Diễn tả quyết định của người nói.",
+        context="Dùng khi tự quyết định sẽ làm việc gì.",
+        jlpt_note="Phân biệt với ことになる.",
+        study_note="Ghi nhớ chủ thể tự đưa ra quyết định.",
+    )
+
+    saved = await client.put("/api/study-data", json=payload)
+    assert saved.status_code == 200
+    returned = (await client.get("/api/study-data")).json()
+    saved_grammar = next(item for item in returned["data"] if item["id"] == grammar["id"])
+    assert saved_grammar["structure"] == "Vる + ことにする"
+    assert saved_grammar["usage"] == "Diễn tả quyết định của người nói."
+    assert saved_grammar["context"] == "Dùng khi tự quyết định sẽ làm việc gì."
+    assert saved_grammar["jlpt_note"] == "Phân biệt với ことになる."
+    assert saved_grammar["study_note"] == "Ghi nhớ chủ thể tự đưa ra quyết định."
+
+
 async def test_health_and_static_frontend_are_served(client: httpx.AsyncClient) -> None:
     assert (await client.get("/api/health/live")).json() == {"status": "ok"}
     assert (await client.get("/api/health/ready")).json() == {"status": "ok"}
     page = await client.get("/")
     assert page.status_code == 200
     assert 'src="bootstrap.js"' in page.text
+    grammar_script = await client.get("/grammar.js")
+    assert grammar_script.status_code == 200
+    assert "startGrammarQuiz" in grammar_script.text
