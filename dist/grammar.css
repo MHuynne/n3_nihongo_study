@@ -42,6 +42,9 @@
 .lesson-card-list h2{margin:8px 0}
 .word-tile h3{margin-bottom:5px;font-size:22px}
 .word-example{padding:12px;border-radius:10px;background:#f5f7f0;line-height:1.7}
+.flashcard-ai-question{font-size:20px;font-weight:600;color:var(--green)}
+.flashcard-ai-actions{justify-content:center;margin:16px 0 0}
+.flashcard-saved-question{padding:10px;border-radius:8px;background:#f5f7f0;line-height:1.7}
 .flash.flash-animate{animation:flash-turn .42s cubic-bezier(.2,.75,.25,1)}
 @keyframes lesson-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes flash-turn{0%{opacity:.35;transform:perspective(700px) rotateY(65deg) scale(.95)}65%{opacity:1;transform:perspective(700px) rotateY(-7deg) scale(1.01)}100%{transform:perspective(700px) rotateY(0) scale(1)}}

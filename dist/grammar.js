@@ -149,8 +149,8 @@
           <label>Công thức<textarea name="structure" maxlength="4000" placeholder="Vる / Vない + ことにする"></textarea></label>
           <label>Cách dùng<textarea name="usage" maxlength="4000"></textarea></label>
           <label>Ngữ cảnh phù hợp<textarea name="context" maxlength="4000"></textarea></label>
-          <label>Ví dụ tiếng Nhật<textarea name="example" maxlength="4000"></textarea></label>
-          <label>Dịch ví dụ<textarea name="translation" maxlength="4000"></textarea></label>
+          <label>Ví dụ tiếng Nhật (không bắt buộc)<textarea name="example" maxlength="4000"></textarea></label>
+          <label>Dịch ví dụ (không bắt buộc)<textarea name="translation" maxlength="4000"></textarea></label>
           <label>Lưu ý khi thi JLPT<textarea name="jlpt_note" maxlength="4000"></textarea></label>
           <label>Ghi chép để chép vào vở<textarea name="study_note" maxlength="4000"></textarea></label>
         </div>
@@ -397,8 +397,10 @@
           <span class="badge">${esc(item.category)}</span><h3 class="jp">${esc(item.term || item.meaning)}</h3>
           ${item.reading ? `<p class="muted">${esc(item.reading)}</p>` : ''}
           <p>${esc(item.meaning)}</p>
+          ${item.question ? `<p class="flashcard-saved-question"><b>Câu hỏi AI:</b> ${esc(item.question)}</p>` : ''}
           ${item.example ? `<p class="jp word-example">${esc(item.example)}</p>` : ''}
           <div class="row"><button onclick="edit('${item.id}')">Sửa thẻ</button>
+            <button onclick="generateStudyQuestion('${item.id}', this)">Tạo câu hỏi AI</button>
             <button onclick="studyOneCard('${item.id}')">Học thẻ</button>
             <button class="danger" onclick="deleteStudyCard('${item.id}')">Xóa thẻ</button></div>
         </article>`).join('')}</div>` : `<div class="empty"><p>Bài học đang trống.</p>
@@ -651,6 +653,36 @@
     render();
   }
 
+  window.generateStudyQuestion = async function (id, button) {
+    const item = data.find((entry) => entry.id === id);
+    if (!item) return toast('Không tìm thấy flashcard.');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Đang tạo câu hỏi…';
+    }
+    try {
+      const response = await fetch('/api/ai/flashcard-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_id: id })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.detail || `Yêu cầu thất bại (${response.status}).`);
+      }
+      item.question = payload.question;
+      save();
+      render();
+      toast('Đã tạo câu hỏi ôn tập bằng Gemini.');
+    } catch (error) {
+      if (button) {
+        button.disabled = false;
+        button.textContent = item.question ? 'Tạo lại câu hỏi AI' : 'Tạo câu hỏi AI';
+      }
+      toast(`Không tạo được câu hỏi: ${error.message}`);
+    }
+  };
+
   window.loadFlashcardSetFile = function (file) {
     const folder = $('#flashcard-folder').value.trim();
     const name = $('#flashcard-deck').value.trim();
@@ -766,6 +798,36 @@
       });
     }
     if (view === 'flash') grammarFlashBack();
+    if (view === 'flash') {
+      const item = deck[idx];
+      const flash = document.querySelector('.flash');
+      if (item && flash) {
+        if (item.question) {
+          const question = document.createElement('p');
+          question.className = 'flashcard-ai-question';
+          question.textContent = item.question;
+          flash.querySelector('.term')?.before(question);
+          if (!flipped) {
+            const term = flash.querySelector('.term');
+            if (term) term.hidden = true;
+          }
+        }
+        if (flipped) {
+          const actions = document.createElement('div');
+          actions.className = 'row center flashcard-ai-actions';
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = item.question ? 'Tạo lại câu hỏi AI' : 'Tạo câu hỏi AI';
+          button.title = 'Nội dung flashcard sẽ được gửi đến Google Gemini để tạo câu hỏi.';
+          button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            window.generateStudyQuestion(item.id, button);
+          });
+          actions.append(button);
+          flash.append(actions);
+        }
+      }
+    }
     if (view === 'flash') document.querySelector('.flash')?.classList.add('flash-animate');
     if (view === 'quiz' && !quiz && category === 'Ngữ pháp') {
       const row = document.querySelector('#qmode')?.parentElement;

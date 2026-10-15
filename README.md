@@ -58,6 +58,10 @@ Tạo OAuth 2.0 Client ID loại Web trong Google Cloud Console. Thêm Authorize
 
 Tài khoản Google được định danh bằng subject do Google xác minh, không tự liên kết theo email với tài khoản mật khẩu có sẵn. Mỗi tài khoản mới được khởi tạo từ `dist/seed.json`.
 
+## Tạo câu hỏi flashcard bằng AI
+
+Thêm `GEMINI_API_KEY` vào `.env` khi chạy local hoặc Render Environment để bật nút **Tạo câu hỏi bằng Gemini**. Tạo key trong Google AI Studio; giữ key ở backend, không đưa vào JavaScript trình duyệt. Có thể đổi model qua `GEMINI_MODEL` (mặc định `gemini-3.8-flash`). Khi tạo câu hỏi, nội dung từ, nghĩa, cách đọc, phân môn và ví dụ của flashcard được gửi đến Gemini. Câu hỏi sinh ra được lưu cùng flashcard trong dữ liệu tài khoản. Trên Render, thêm `GEMINI_API_KEY` trong **Environment** rồi deploy lại; không đưa key vào Git.
+
 ## Kiểm tra
 
 Tại thư mục dự án:

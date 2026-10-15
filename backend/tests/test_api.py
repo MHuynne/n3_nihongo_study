@@ -271,12 +271,65 @@ async def test_grammar_study_fields_are_saved_and_returned(client: httpx.AsyncCl
     assert preserved["lessons"][0]["id"] == "lesson_test_1"
 
 
+async def test_ai_flashcard_question_is_generated_for_account_card(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.api.routes import ai
+    from app.core.config import Settings
+
+    registered = await client.post(
+        "/api/auth/register",
+        json={"username": "ai.flashcard", "password": "a-strong-study-password"},
+    )
+    assert registered.status_code == 201
+    payload = (await client.get("/api/study-data")).json()
+    payload["data"].append(
+        {
+            "id": "ai_card_1",
+            "term": "平均寿命",
+            "meaning": "Tuổi thọ trung bình",
+            "lesson": "Bài 12",
+            "category": "Từ vựng bài học",
+            "example": "",
+        }
+    )
+    assert (await client.put("/api/study-data", json=payload)).status_code == 200
+
+    application = client._transport.app
+    application.state.settings = Settings(
+        _env_file=None,
+        app_env="test",
+        session_secret="test-session-secret-with-at-least-32-chars",
+        mysql_host="127.0.0.1",
+        mysql_user="n3studio_test",
+        mysql_password="test-database-password",
+        mysql_database="n3_study_studio_test",
+        trusted_hosts=["testserver"],
+        rate_limit_storage_uri="memory://",
+        gemini_api_key="test-gemini-api-key",
+    )
+
+    async def fake_question(settings, **card_fields):
+        assert card_fields["term"] == "平均寿命"
+        assert card_fields["example"] == ""
+        return "Từ nào diễn tả tuổi thọ trung bình?"
+
+    monkeypatch.setattr(ai, "generate_flashcard_question", fake_question)
+    response = await client.post(
+        "/api/ai/flashcard-question",
+        json={"card_id": "ai_card_1"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"question": "Từ nào diễn tả tuổi thọ trung bình?"}
+
+
 async def test_health_and_static_frontend_are_served(client: httpx.AsyncClient) -> None:
     assert (await client.get("/api/health/live")).json() == {"status": "ok"}
     assert (await client.get("/api/health/ready")).json() == {"status": "ok"}
     page = await client.get("/")
     assert page.status_code == 200
-    assert 'src="bootstrap.js?v=browser-history-1"' in page.text
+    assert 'src="bootstrap.js?v=ai-flashcard-question-2"' in page.text
     assert 'href="auth.css?v=browser-history-1"' in page.text
     grammar_script = await client.get("/grammar.js")
     assert grammar_script.status_code == 200
