@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     google_client_id: str | None = None
     google_client_secret: SecretStr | None = None
     google_redirect_uri: str | None = None
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-3.8-flash"
     rate_limit_storage_uri: str = "memory://"
     forwarded_allow_ips: str = "127.0.0.1"
     trusted_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
@@ -58,6 +60,13 @@ class Settings(BaseSettings):
     )
     @classmethod
     def normalize_optional_google_settings(cls, value):
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
+
+    @field_validator("gemini_api_key", mode="before")
+    @classmethod
+    def normalize_gemini_api_key(cls, value):
         if isinstance(value, str):
             return value.strip() or None
         return value

@@ -33,6 +33,7 @@ class StudyItem(BaseModel):
     study_note: str = Field(default="", max_length=4000)
     deck_folder: str = Field(default="", max_length=120)
     deck_name: str = Field(default="", max_length=200)
+    question: str = Field(default="", max_length=500)
 
     @model_validator(mode="after")
     def validate_term_or_meaning(self) -> StudyItem:
@@ -109,3 +110,13 @@ class StudyDataPayload(BaseModel):
 
 class SaveStudyDataResponse(BaseModel):
     saved: bool
+
+
+class FlashcardQuestionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    card_id: SafeId
+
+
+class FlashcardQuestionResponse(BaseModel):
+    question: str = Field(min_length=1, max_length=500)

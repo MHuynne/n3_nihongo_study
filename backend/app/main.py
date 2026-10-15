@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.api.routes.ai import router as ai_router
 from app.api.routes.auth import limiter as auth_limiter
 from app.api.routes.auth import router as auth_router
 from app.api.routes.health import router as health_router
@@ -160,6 +161,7 @@ def create_app(settings: Settings | None = None, engine: AsyncEngine | None = No
         )
 
     application.include_router(auth_router)
+    application.include_router(ai_router)
     application.include_router(study_data_router)
     application.include_router(health_router)
     application.add_middleware(RequestSecurityMiddleware)
