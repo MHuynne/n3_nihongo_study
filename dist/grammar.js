@@ -567,6 +567,13 @@
           item.lesson = name;
         }
       }
+      if (activeStudySet?.folder === oldTopic && activeStudySet?.name === oldName) {
+        activeStudySet = { folder: topic, name };
+      }
+      if (activeDeckFolder === oldTopic && activeDeckName === oldName) {
+        activeDeckFolder = topic;
+        activeDeckName = name;
+      }
       save();
       openStudyLesson(id);
       toast('Đã cập nhật bài học và các flashcard liên quan.');

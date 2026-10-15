@@ -245,7 +245,7 @@
     script.src = '/app.js?v=browser-history-1';
     script.onload = () => {
       const grammarScript = document.createElement('script');
-      grammarScript.src = '/grammar.js?v=browser-history-1';
+      grammarScript.src = '/grammar.js?v=lesson-title-sync-1';
       grammarScript.onerror = () => {
         console.error('Unable to load grammar study features.');
         document.querySelector('#app').innerHTML = '<div class="notice">Không tải được phần học ngữ pháp. Hãy tải lại trang để thử lại.</div>';
