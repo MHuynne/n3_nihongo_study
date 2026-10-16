@@ -124,6 +124,21 @@
     );
   }
 
+  function grammarPatternFields(item = {}) {
+    return `<div class="formgrid">
+      <label>Bài / chủ đề<input name="lesson" required maxlength="200" placeholder="Ví dụ: Bài 01 · Quyết định" value="${esc(item.lesson)}"></label>
+      <label>Mẫu ngữ pháp<input name="term" maxlength="500" placeholder="Ví dụ: 〜ことにする" value="${esc(item.term)}"></label>
+      <label>Ý nghĩa / giải thích<textarea name="meaning" maxlength="4000" placeholder="Tự quyết định sẽ làm việc gì">${esc(item.meaning)}</textarea></label>
+      <label>Công thức<textarea name="structure" maxlength="4000" placeholder="Vる / Vない + ことにする">${esc(item.structure)}</textarea></label>
+      <label>Cách dùng<textarea name="usage" maxlength="4000">${esc(item.usage)}</textarea></label>
+      <label>Ngữ cảnh phù hợp<textarea name="context" maxlength="4000">${esc(item.context)}</textarea></label>
+      <label>Ví dụ tiếng Nhật<textarea name="example" maxlength="4000">${esc(item.example)}</textarea></label>
+      <label>Dịch ví dụ<textarea name="translation" maxlength="4000">${esc(item.translation)}</textarea></label>
+      <label>Lưu ý khi thi JLPT<textarea name="jlpt_note" maxlength="4000">${esc(item.jlpt_note)}</textarea></label>
+      <label>Ghi chép để chép vào vở<textarea name="study_note" maxlength="4000">${esc(item.study_note)}</textarea></label>
+    </div>`;
+  }
+
   function grammarPage() {
     const items = grammarItems();
     return `<div class="filters">
@@ -142,18 +157,7 @@
       <h2>＋ Tạo mẫu ngữ pháp</h2>
       <p class="muted">Nhập mẫu hoặc ý nghĩa; công thức, ngữ cảnh và ví dụ có thể bổ sung riêng.</p>
       <form id="create-grammar-form">
-        <div class="formgrid">
-          <label>Bài / chủ đề<input name="lesson" required maxlength="200" placeholder="Ví dụ: Bài 01 · Quyết định"></label>
-          <label>Mẫu ngữ pháp<input name="term" maxlength="500" placeholder="Ví dụ: 〜ことにする"></label>
-          <label>Ý nghĩa / giải thích<textarea name="meaning" maxlength="4000" placeholder="Tự quyết định sẽ làm việc gì"></textarea></label>
-          <label>Công thức<textarea name="structure" maxlength="4000" placeholder="Vる / Vない + ことにする"></textarea></label>
-          <label>Cách dùng<textarea name="usage" maxlength="4000"></textarea></label>
-          <label>Ngữ cảnh phù hợp<textarea name="context" maxlength="4000"></textarea></label>
-          <label>Ví dụ tiếng Nhật (không bắt buộc)<textarea name="example" maxlength="4000"></textarea></label>
-          <label>Dịch ví dụ (không bắt buộc)<textarea name="translation" maxlength="4000"></textarea></label>
-          <label>Lưu ý khi thi JLPT<textarea name="jlpt_note" maxlength="4000"></textarea></label>
-          <label>Ghi chép để chép vào vở<textarea name="study_note" maxlength="4000"></textarea></label>
-        </div>
+        ${grammarPatternFields()}
         <button class="primary">Lưu mẫu ngữ pháp</button>
       </form>
     </section>
@@ -340,7 +344,7 @@
     </div>`}
     <section class="legacy-lessons">
       <h2>Flashcard chưa xếp vào bài học</h2>
-      <p class="muted">Các thẻ cũ được giữ nguyên. Chúng vẫn có trong mục Flashcard và Bộ flashcard.</p>
+      <p class="muted">Các thẻ cũ được giữ nguyên trong Bộ flashcard.</p>
       <span class="badge">${data.filter((item) => !item.deck_name).length} thẻ chưa xếp</span>
       <button onclick="go('sets')">Xem tất cả bộ flashcard →</button>
     </section>`;
@@ -845,19 +849,7 @@
     const item = data.find((entry) => entry.id === id);
     if (item?.category !== 'Ngữ pháp') return baseEdit(id);
     $('#app').innerHTML = `<div class="card"><h2>Soạn bài ngữ pháp</h2>
-      <form id="grammar-edit"><div class="formgrid">
-        <label>Mẫu ngữ pháp<input name="term" maxlength="500" value="${esc(item.term)}"></label>
-        <label>Ý nghĩa / giải thích<input name="meaning" maxlength="4000" value="${esc(item.meaning)}"></label>
-        <label>Bài học<input name="lesson" required maxlength="200" value="${esc(item.lesson)}"></label>
-        <label>Cách đọc<input name="reading" maxlength="4000" value="${esc(item.reading)}"></label>
-        <label>Công thức chia<textarea name="structure" maxlength="4000">${esc(item.structure)}</textarea></label>
-        <label>Cách dùng<textarea name="usage" maxlength="4000">${esc(item.usage)}</textarea></label>
-        <label>Ngữ cảnh phù hợp<textarea name="context" maxlength="4000">${esc(item.context)}</textarea></label>
-        <label>Ví dụ tiếng Nhật<textarea name="example" maxlength="4000">${esc(item.example)}</textarea></label>
-        <label>Dịch ví dụ<textarea name="translation" maxlength="4000">${esc(item.translation)}</textarea></label>
-        <label>Lưu ý khi thi JLPT<textarea name="jlpt_note" maxlength="4000">${esc(item.jlpt_note)}</textarea></label>
-        <label>Ghi chép để chép vào vở<textarea name="study_note" maxlength="4000">${esc(item.study_note)}</textarea></label>
-      </div><p><button class="primary">Lưu bài học</button>
+      <form id="grammar-edit">${grammarPatternFields(item)}<p><button class="primary">Lưu bài học</button>
         <button type="button" onclick="go('grammar')">Hủy</button></p></form></div>`;
     $('#grammar-edit').onsubmit = (event) => {
       event.preventDefault();

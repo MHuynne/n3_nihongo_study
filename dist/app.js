@@ -1,6 +1,6 @@
 const cats=['Từ vựng bài học','Từ vựng bài đọc','Từ vựng bài nghe','Hán tự','Ngữ pháp'];let data=[],state={},notes=[],history=[],lessons=[],view='home',lesson='',category='',query='',onlyWeak=false,deck=[],idx=0,flipped=false,quiz=null,pending=[],audioURL='';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const menus=[['home','⌂','Tổng quan'],['library','▤','Kho bài học'],['flash','▣','Flashcard'],['weak','☆','Từ chưa nhớ'],['quiz','⚡','Quiz theo bài'],['listen','♫','Góc luyện nghe'],['import','↥','Nhập & sao lưu']];
+const menus=[['home','⌂','Tổng quan'],['library','▤','Kho bài học'],['weak','☆','Từ chưa nhớ'],['quiz','⚡','Quiz theo bài'],['listen','♫','Góc luyện nghe'],['import','↥','Nhập & sao lưu']];
 function save(){try{localStorage.setItem('n3studio',JSON.stringify({data,state,notes,history,lessons}));}catch(e){toast('Không lưu được: bộ nhớ trình duyệt đầy. Hãy xuất sao lưu.')}}
 function toast(t){$('#toast').textContent=t;$('#toast').style.display='block';setTimeout(()=>$('#toast').style.display='none',3500)}
 function filtered(){return data.filter(x=>(!lesson||x.lesson===lesson)&&(!category||x.category===category)&&(!query||[x.term,x.reading,x.meaning,x.hanviet].join(' ').toLowerCase().includes(query.toLowerCase()))&&(!onlyWeak||state[x.id]?.weak))}
